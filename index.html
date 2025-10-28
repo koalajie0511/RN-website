@@ -365,6 +365,12 @@
     </div>
 
     <script>
+        // 页面加载时从本地存储恢复PDF列表
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPDFsFromStorage('exercise');
+            loadPDFsFromStorage('math');
+        });
+
         // 习题集模块功能
         document.getElementById('pdf-upload-exercise').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -389,7 +395,51 @@
             const fileName = file.name.replace('.pdf', '');
             const uploadDate = new Date().toLocaleDateString();
             
-            // 创建新的PDF项目
+            // 将文件转换为Base64以便存储
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const pdfData = {
+                    name: fileName,
+                    date: uploadDate,
+                    data: e.target.result
+                };
+                
+                // 保存到本地存储
+                savePDFToStorage(pdfData, moduleType);
+                
+                // 更新UI
+                addPDFToUI(pdfData, moduleType);
+                
+                alert('PDF文件上传成功！');
+            };
+            reader.readAsDataURL(file);
+            
+            // 重置文件输入
+            document.getElementById(`pdf-upload-${moduleType}`).value = '';
+        }
+        
+        function savePDFToStorage(pdfData, moduleType) {
+            let storedPDFs = JSON.parse(localStorage.getItem(`pdfs-${moduleType}`)) || [];
+            storedPDFs.push(pdfData);
+            localStorage.setItem(`pdfs-${moduleType}`, JSON.stringify(storedPDFs));
+        }
+        
+        function loadPDFsFromStorage(moduleType) {
+            const storedPDFs = JSON.parse(localStorage.getItem(`pdfs-${moduleType}`)) || [];
+            const pdfList = document.getElementById(`pdf-list-${moduleType}`);
+            
+            if (storedPDFs.length > 0) {
+                // 清除空状态提示
+                pdfList.innerHTML = '';
+                
+                // 添加每个PDF到UI
+                storedPDFs.forEach(pdfData => {
+                    addPDFToUI(pdfData, moduleType);
+                });
+            }
+        }
+        
+        function addPDFToUI(pdfData, moduleType) {
             const pdfList = document.getElementById(`pdf-list-${moduleType}`);
             
             // 如果当前是空状态，则清除空状态提示
@@ -401,26 +451,21 @@
             pdfItem.className = 'pdf-item';
             pdfItem.innerHTML = `
                 <div class="pdf-info">
-                    <div class="pdf-name">${fileName}</div>
-                    <div class="pdf-date">上传时间: ${uploadDate}</div>
+                    <div class="pdf-name">${pdfData.name}</div>
+                    <div class="pdf-date">上传时间: ${pdfData.date}</div>
                 </div>
                 <div class="pdf-actions">
-                    <button class="view-btn" onclick="viewPDF('${fileName}', '${URL.createObjectURL(file)}')">查看</button>
-                    <button class="delete-btn" onclick="deletePDF(this, '${moduleType}')">删除</button>
+                    <button class="view-btn" onclick="viewPDF('${pdfData.name}', '${pdfData.data}')">查看</button>
+                    <button class="delete-btn" onclick="deletePDF(this, '${moduleType}', '${pdfData.name}')">删除</button>
                 </div>
             `;
             
             pdfList.appendChild(pdfItem);
-            
-            // 重置文件输入
-            document.getElementById(`pdf-upload-${moduleType}`).value = '';
-            
-            alert('PDF文件上传成功！');
         }
         
-        function viewPDF(title, url) {
+        function viewPDF(title, dataUrl) {
             document.getElementById('pdf-title').textContent = title;
-            document.getElementById('pdf-frame').src = url;
+            document.getElementById('pdf-frame').src = dataUrl;
             document.getElementById('pdf-viewer').style.display = 'block';
         }
         
@@ -429,11 +474,15 @@
             document.getElementById('pdf-frame').src = '';
         }
         
-        function deletePDF(button, moduleType) {
-            const pdfItem = button.closest('.pdf-item');
-            const pdfName = pdfItem.querySelector('.pdf-name').textContent;
-            
+        function deletePDF(button, moduleType, pdfName) {
             if (confirm(`确定要删除"${pdfName}"吗？`)) {
+                // 从本地存储中删除
+                let storedPDFs = JSON.parse(localStorage.getItem(`pdfs-${moduleType}`)) || [];
+                storedPDFs = storedPDFs.filter(pdf => pdf.name !== pdfName);
+                localStorage.setItem(`pdfs-${moduleType}`, JSON.stringify(storedPDFs));
+                
+                // 从UI中删除
+                const pdfItem = button.closest('.pdf-item');
                 pdfItem.remove();
                 
                 // 如果删除后列表为空，显示空状态提示
@@ -450,5 +499,4 @@
         }
     </script>
 </body>
-
 </html>
