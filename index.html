@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小坏蛋的个人空间</title>
+    <title>小坏蛋的个人空间 - PDF共享</title>
     <style>
         * {
             margin: 0;
@@ -45,6 +45,23 @@
         .subtitle {
             font-size: 1.3rem;
             opacity: 0.9;
+        }
+        
+        .admin-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+            border-left: 5px solid #ffc107;
+        }
+        
+        .admin-panel h2 {
+            color: #ffc107;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .modules-container {
@@ -298,14 +315,40 @@
         .empty-state p {
             margin-bottom: 15px;
         }
+        
+        .admin-indicator {
+            background: #ffc107;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>小坏蛋的个人空间</h1>
-            <p class="subtitle">记录我的学习与成长</p>
+            <p class="subtitle">PDF文件共享平台</p>
         </header>
+        
+        <!-- 管理员面板 -->
+        <div class="admin-panel" id="admin-panel">
+            <h2><span>🔧</span> 管理员上传区域</h2>
+            <div class="upload-area">
+                <p>选择要上传的PDF文件</p>
+                <input type="file" id="admin-pdf-upload" class="file-input" accept=".pdf">
+                <label for="admin-pdf-upload" class="file-label">选择PDF文件</label>
+            </div>
+            <div>
+                <label for="category-select">选择分类:</label>
+                <select id="category-select">
+                    <option value="exercise">习题集</option>
+                    <option value="math">高等数学</option>
+                </select>
+            </div>
+        </div>
         
         <div class="modules-container">
             <div class="module">
@@ -314,17 +357,11 @@
                     <div class="module-icon">📚</div>
                 </div>
                 
-                <div class="upload-area" id="upload-area-exercise">
-                    <p>上传习题相关的PDF文件</p>
-                    <input type="file" id="pdf-upload-exercise" class="file-input" accept=".pdf">
-                    <label for="pdf-upload-exercise" class="file-label">选择PDF文件</label>
-                </div>
-                
                 <div class="pdf-list" id="pdf-list-exercise">
                     <!-- 习题集PDF文件列表将在这里动态生成 -->
                     <div class="empty-state">
                         <p>暂无习题集文件</p>
-                        <p>点击上方按钮上传第一个文件</p>
+                        <p>等待管理员上传文件</p>
                     </div>
                 </div>
             </div>
@@ -335,17 +372,11 @@
                     <div class="module-icon">∫</div>
                 </div>
                 
-                <div class="upload-area" id="upload-area-math">
-                    <p>上传高等数学相关的PDF文件</p>
-                    <input type="file" id="pdf-upload-math" class="file-input" accept=".pdf">
-                    <label for="pdf-upload-math" class="file-label">选择PDF文件</label>
-                </div>
-                
                 <div class="pdf-list" id="pdf-list-math">
                     <!-- 高等数学PDF文件列表将在这里动态生成 -->
                     <div class="empty-state">
                         <p>暂无高等数学文件</p>
-                        <p>点击上方按钮上传第一个文件</p>
+                        <p>等待管理员上传文件</p>
                     </div>
                 </div>
             </div>
@@ -360,86 +391,46 @@
         </div>
         
         <footer>
-            <p>小坏蛋的个人空间 &copy; since 2025 | 记录我的学习与成长</p>
+            <p>小坏蛋的个人空间 &copy; since 2025 | PDF文件共享平台</p>
         </footer>
     </div>
 
     <script>
-        // 页面加载时从本地存储恢复PDF列表
-        document.addEventListener('DOMContentLoaded', function() {
-            loadPDFsFromStorage('exercise');
-            loadPDFsFromStorage('math');
-        });
-
-        // 习题集模块功能
-        document.getElementById('pdf-upload-exercise').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                uploadPDF(file, 'exercise');
-            } else {
-                alert('请选择PDF文件');
+        // 初始化存储
+        function initializeStorage() {
+            if (!localStorage.getItem('pdfFiles')) {
+                localStorage.setItem('pdfFiles', JSON.stringify({
+                    exercise: [],
+                    math: []
+                }));
             }
-        });
-        
-        // 高等数学模块功能
-        document.getElementById('pdf-upload-math').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                uploadPDF(file, 'math');
-            } else {
-                alert('请选择PDF文件');
-            }
-        });
-        
-        function uploadPDF(file, moduleType) {
-            const fileName = file.name.replace('.pdf', '');
-            const uploadDate = new Date().toLocaleDateString();
-            
-            // 将文件转换为Base64以便存储
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const pdfData = {
-                    name: fileName,
-                    date: uploadDate,
-                    data: e.target.result
-                };
-                
-                // 保存到本地存储
-                savePDFToStorage(pdfData, moduleType);
-                
-                // 更新UI
-                addPDFToUI(pdfData, moduleType);
-                
-                alert('PDF文件上传成功！');
-            };
-            reader.readAsDataURL(file);
-            
-            // 重置文件输入
-            document.getElementById(`pdf-upload-${moduleType}`).value = '';
         }
         
-        function savePDFToStorage(pdfData, moduleType) {
-            let storedPDFs = JSON.parse(localStorage.getItem(`pdfs-${moduleType}`)) || [];
-            storedPDFs.push(pdfData);
-            localStorage.setItem(`pdfs-${moduleType}`, JSON.stringify(storedPDFs));
-        }
-        
-        function loadPDFsFromStorage(moduleType) {
-            const storedPDFs = JSON.parse(localStorage.getItem(`pdfs-${moduleType}`)) || [];
-            const pdfList = document.getElementById(`pdf-list-${moduleType}`);
+        // 加载PDF文件列表
+        function loadPDFFiles() {
+            const pdfFiles = JSON.parse(localStorage.getItem('pdfFiles'));
             
-            if (storedPDFs.length > 0) {
-                // 清除空状态提示
-                pdfList.innerHTML = '';
-                
-                // 添加每个PDF到UI
-                storedPDFs.forEach(pdfData => {
-                    addPDFToUI(pdfData, moduleType);
+            // 加载习题集文件
+            const exerciseList = document.getElementById('pdf-list-exercise');
+            if (pdfFiles.exercise.length > 0) {
+                exerciseList.innerHTML = '';
+                pdfFiles.exercise.forEach(file => {
+                    addPDFToList(file, 'exercise');
+                });
+            }
+            
+            // 加载高等数学文件
+            const mathList = document.getElementById('pdf-list-math');
+            if (pdfFiles.math.length > 0) {
+                mathList.innerHTML = '';
+                pdfFiles.math.forEach(file => {
+                    addPDFToList(file, 'math');
                 });
             }
         }
         
-        function addPDFToUI(pdfData, moduleType) {
+        // 添加PDF到列表
+        function addPDFToList(file, moduleType) {
             const pdfList = document.getElementById(`pdf-list-${moduleType}`);
             
             // 如果当前是空状态，则清除空状态提示
@@ -451,21 +442,57 @@
             pdfItem.className = 'pdf-item';
             pdfItem.innerHTML = `
                 <div class="pdf-info">
-                    <div class="pdf-name">${pdfData.name}</div>
-                    <div class="pdf-date">上传时间: ${pdfData.date}</div>
+                    <div class="pdf-name">${file.name}</div>
+                    <div class="pdf-date">上传时间: ${file.date}</div>
                 </div>
                 <div class="pdf-actions">
-                    <button class="view-btn" onclick="viewPDF('${pdfData.name}', '${pdfData.data}')">查看</button>
-                    <button class="delete-btn" onclick="deletePDF(this, '${moduleType}', '${pdfData.name}')">删除</button>
+                    <button class="view-btn" onclick="viewPDF('${file.name}', '${file.url}')">查看</button>
                 </div>
             `;
             
             pdfList.appendChild(pdfItem);
         }
         
-        function viewPDF(title, dataUrl) {
+        // 管理员上传功能
+        document.getElementById('admin-pdf-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const category = document.getElementById('category-select').value;
+            
+            if (file && file.type === 'application/pdf') {
+                adminUploadPDF(file, category);
+            } else {
+                alert('请选择PDF文件');
+            }
+        });
+        
+        function adminUploadPDF(file, category) {
+            const fileName = file.name.replace('.pdf', '');
+            const uploadDate = new Date().toLocaleDateString();
+            
+            // 创建文件对象
+            const fileObj = {
+                name: fileName,
+                date: uploadDate,
+                url: URL.createObjectURL(file)
+            };
+            
+            // 保存到本地存储
+            const pdfFiles = JSON.parse(localStorage.getItem('pdfFiles'));
+            pdfFiles[category].push(fileObj);
+            localStorage.setItem('pdfFiles', JSON.stringify(pdfFiles));
+            
+            // 添加到列表
+            addPDFToList(fileObj, category);
+            
+            // 重置文件输入
+            document.getElementById('admin-pdf-upload').value = '';
+            
+            alert('PDF文件上传成功！');
+        }
+        
+        function viewPDF(title, url) {
             document.getElementById('pdf-title').textContent = title;
-            document.getElementById('pdf-frame').src = dataUrl;
+            document.getElementById('pdf-frame').src = url;
             document.getElementById('pdf-viewer').style.display = 'block';
         }
         
@@ -474,29 +501,9 @@
             document.getElementById('pdf-frame').src = '';
         }
         
-        function deletePDF(button, moduleType, pdfName) {
-            if (confirm(`确定要删除"${pdfName}"吗？`)) {
-                // 从本地存储中删除
-                let storedPDFs = JSON.parse(localStorage.getItem(`pdfs-${moduleType}`)) || [];
-                storedPDFs = storedPDFs.filter(pdf => pdf.name !== pdfName);
-                localStorage.setItem(`pdfs-${moduleType}`, JSON.stringify(storedPDFs));
-                
-                // 从UI中删除
-                const pdfItem = button.closest('.pdf-item');
-                pdfItem.remove();
-                
-                // 如果删除后列表为空，显示空状态提示
-                const pdfList = document.getElementById(`pdf-list-${moduleType}`);
-                if (pdfList.children.length === 0) {
-                    pdfList.innerHTML = `
-                        <div class="empty-state">
-                            <p>暂无${moduleType === 'exercise' ? '习题集' : '高等数学'}文件</p>
-                            <p>点击上方按钮上传第一个文件</p>
-                        </div>
-                    `;
-                }
-            }
-        }
+        // 初始化
+        initializeStorage();
+        loadPDFFiles();
     </script>
 </body>
 </html>
