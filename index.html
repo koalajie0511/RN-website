@@ -34,6 +34,7 @@
             color: white;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
         
         h1 {
@@ -45,6 +46,19 @@
         .subtitle {
             font-size: 1.3rem;
             opacity: 0.9;
+        }
+        
+        .admin-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #ffc107;
+            color: #333;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
         .admin-panel {
@@ -141,6 +155,15 @@
         .file-label:hover {
             background: #5a0db8;
             transform: scale(1.05);
+        }
+        
+        .category-select {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            width: 100%;
+            font-size: 1rem;
         }
         
         .pdf-list {
@@ -316,21 +339,32 @@
             margin-bottom: 15px;
         }
         
-        .admin-indicator {
-            background: #ffc107;
-            color: #333;
-            padding: 5px 10px;
+        .user-mode-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 15px;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .user-mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
+            <div class="user-mode-toggle" id="user-mode-toggle">切换到用户模式</div>
             <h1>小坏蛋的个人空间</h1>
             <p class="subtitle">PDF文件共享平台</p>
+            <div class="admin-indicator" id="admin-indicator">管理员模式</div>
         </header>
         
         <!-- 管理员面板 -->
@@ -340,10 +374,7 @@
                 <p>选择要上传的PDF文件</p>
                 <input type="file" id="admin-pdf-upload" class="file-input" accept=".pdf">
                 <label for="admin-pdf-upload" class="file-label">选择PDF文件</label>
-            </div>
-            <div>
-                <label for="category-select">选择分类:</label>
-                <select id="category-select">
+                <select class="category-select" id="category-select">
                     <option value="exercise">习题集</option>
                     <option value="math">高等数学</option>
                 </select>
@@ -404,33 +435,71 @@
                     math: []
                 }));
             }
+            
+            // 初始化管理员状态
+            if (!localStorage.getItem('isAdmin')) {
+                localStorage.setItem('isAdmin', 'true');
+            }
+        }
+        
+        // 检查管理员状态
+        function checkAdminStatus() {
+            const isAdmin = localStorage.getItem('isAdmin') === 'true';
+            document.getElementById('admin-panel').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('admin-indicator').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('user-mode-toggle').textContent = isAdmin ? '切换到用户模式' : '切换到管理员模式';
+            
+            // 重新加载PDF列表以更新按钮显示
+            loadPDFFiles();
+        }
+        
+        // 切换用户模式
+        function toggleUserMode() {
+            const currentStatus = localStorage.getItem('isAdmin') === 'true';
+            localStorage.setItem('isAdmin', (!currentStatus).toString());
+            checkAdminStatus();
         }
         
         // 加载PDF文件列表
         function loadPDFFiles() {
             const pdfFiles = JSON.parse(localStorage.getItem('pdfFiles'));
+            const isAdmin = localStorage.getItem('isAdmin') === 'true';
             
             // 加载习题集文件
             const exerciseList = document.getElementById('pdf-list-exercise');
             if (pdfFiles.exercise.length > 0) {
                 exerciseList.innerHTML = '';
-                pdfFiles.exercise.forEach(file => {
-                    addPDFToList(file, 'exercise');
+                pdfFiles.exercise.forEach((file, index) => {
+                    addPDFToList(file, 'exercise', index, isAdmin);
                 });
+            } else {
+                exerciseList.innerHTML = `
+                    <div class="empty-state">
+                        <p>暂无习题集文件</p>
+                        <p>等待管理员上传文件</p>
+                    </div>
+                `;
             }
             
             // 加载高等数学文件
             const mathList = document.getElementById('pdf-list-math');
             if (pdfFiles.math.length > 0) {
                 mathList.innerHTML = '';
-                pdfFiles.math.forEach(file => {
-                    addPDFToList(file, 'math');
+                pdfFiles.math.forEach((file, index) => {
+                    addPDFToList(file, 'math', index, isAdmin);
                 });
+            } else {
+                mathList.innerHTML = `
+                    <div class="empty-state">
+                        <p>暂无高等数学文件</p>
+                        <p>等待管理员上传文件</p>
+                    </div>
+                `;
             }
         }
         
         // 添加PDF到列表
-        function addPDFToList(file, moduleType) {
+        function addPDFToList(file, moduleType, index, isAdmin) {
             const pdfList = document.getElementById(`pdf-list-${moduleType}`);
             
             // 如果当前是空状态，则清除空状态提示
@@ -440,6 +509,11 @@
             
             const pdfItem = document.createElement('div');
             pdfItem.className = 'pdf-item';
+            
+            // 根据是否为管理员显示不同的按钮
+            const adminButtons = isAdmin ? 
+                `<button class="delete-btn" onclick="deletePDF('${moduleType}', ${index})">删除</button>` : '';
+            
             pdfItem.innerHTML = `
                 <div class="pdf-info">
                     <div class="pdf-name">${file.name}</div>
@@ -447,6 +521,7 @@
                 </div>
                 <div class="pdf-actions">
                     <button class="view-btn" onclick="viewPDF('${file.name}', '${file.url}')">查看</button>
+                    ${adminButtons}
                 </div>
             `;
             
@@ -482,7 +557,8 @@
             localStorage.setItem('pdfFiles', JSON.stringify(pdfFiles));
             
             // 添加到列表
-            addPDFToList(fileObj, category);
+            const isAdmin = localStorage.getItem('isAdmin') === 'true';
+            addPDFToList(fileObj, category, pdfFiles[category].length - 1, isAdmin);
             
             // 重置文件输入
             document.getElementById('admin-pdf-upload').value = '';
@@ -501,9 +577,22 @@
             document.getElementById('pdf-frame').src = '';
         }
         
+        // 删除PDF文件
+        function deletePDF(category, index) {
+            const pdfFiles = JSON.parse(localStorage.getItem('pdfFiles'));
+            const fileName = pdfFiles[category][index].name;
+            
+            if (confirm(`确定要删除"${fileName}"吗？`)) {
+                pdfFiles[category].splice(index, 1);
+                localStorage.setItem('pdfFiles', JSON.stringify(pdfFiles));
+                loadPDFFiles();
+            }
+        }
+        
         // 初始化
         initializeStorage();
-        loadPDFFiles();
+        checkAdminStatus();
+        document.getElementById('user-mode-toggle').addEventListener('click', toggleUserMode);
     </script>
 </body>
 </html>
